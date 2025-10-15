@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像ビューア</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .pagination {
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .page-info {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .gallery {
+            display: grid;
+            gap: 20px;
+        }
+        .image-pair {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .image-container {
+            text-align: center;
+        }
+        .image-container h3 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 16px;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .annotation {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+            text-align: left;
+        }
+        .filename {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>画像ビューア</h1>
+        <div class="controls">
+            <div class="pagination">
+                <button id="prevBtn" onclick="prevPage()">前へ</button>
+                <button id="nextBtn" onclick="nextPage()">次へ</button>
+            </div>
+            <div class="page-info" id="pageInfo"></div>
+        </div>
+        <div id="gallery" class="gallery"></div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        const pageSize = 20;
+        let totalPages = 1;
+
+        async function loadImages(page) {
+            const gallery = document.getElementById('gallery');
+            const pageInfo = document.getElementById('pageInfo');
+
+            gallery.innerHTML = '<div class="loading">読み込み中...</div>';
+
+            try {
+                const response = await fetch(`/api/images?page=${page}&page_size=${pageSize}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load images');
+                }
+
+                const result = await response.json();
+                const images = result.data;
+                const pagination = result.pagination;
+
+                currentPage = pagination.page;
+                totalPages = pagination.total_pages;
+
+                // Update page info
+                pageInfo.textContent = `${pagination.total}件中 ${(currentPage-1)*pageSize + 1} - ${Math.min(currentPage*pageSize, pagination.total)}件目を表示（ページ ${currentPage}/${totalPages}）`;
+
+                // Update buttons
+                document.getElementById('prevBtn').disabled = currentPage <= 1;
+                document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+
+                // Clear gallery
+                gallery.innerHTML = '';
+
+                // Render images
+                if (images.length === 0) {
+                    gallery.innerHTML = '<div class="loading">画像がありません</div>';
+                    return;
+                }
+
+                images.forEach(img => {
+                    const pairDiv = document.createElement('div');
+                    pairDiv.className = 'image-pair';
+
+                    pairDiv.innerHTML = `
+                        <div class="image-container">
+                            <h3>オリジナル</h3>
+                            <img src="/images/original/${img.filename}" alt="${img.filename}" loading="lazy">
+                            <div class="annotation">${escapeHtml(img.original)}</div>
+                            <div class="filename">${escapeHtml(img.filename)}</div>
+                        </div>
+                        <div class="image-container">
+                            <h3>第一色覚シミュレーション</h3>
+                            <img src="/images/protanope/${img.filename}" alt="${img.filename}" loading="lazy">
+                            <div class="annotation">${escapeHtml(img.protanope)}</div>
+                            <div class="filename">${escapeHtml(img.filename)}</div>
+                        </div>
+                    `;
+
+                    gallery.appendChild(pairDiv);
+                });
+
+            } catch (error) {
+                console.error('Error loading images:', error);
+                gallery.innerHTML = '<div class="error">画像の読み込みに失敗しました</div>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                loadImages(currentPage - 1);
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                loadImages(currentPage + 1);
+            }
+        }
+
+        // Load initial page
+        loadImages(1);
+    </script>
+</body>
+</html>
