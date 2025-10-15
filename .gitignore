@@ -2,6 +2,6 @@
 images/
 images.csv
 
-# Prompts and parsing script
+# Prompts and working directory
 prompts/
-parse_html.py
+work/
