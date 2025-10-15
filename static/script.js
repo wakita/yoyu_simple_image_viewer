@@ -46,13 +46,13 @@ async function loadImages(page) {
                     <h3>オリジナル</h3>
                     <img src="/images/original/${img.filename}" alt="${img.filename}" loading="lazy">
                     <div class="annotation">${escapeHtml(img.original)}</div>
-                    <div class="filename">${escapeHtml(img.filename)}</div>
+                    <div class="filename">${escapeHtml(trimFilename(img.filename))}</div>
                 </div>
                 <div class="image-container">
                     <h3>第一色覚シミュレーション</h3>
                     <img src="/images/protanope/${img.filename}" alt="${img.filename}" loading="lazy">
                     <div class="annotation">${escapeHtml(img.protanope)}</div>
-                    <div class="filename">${escapeHtml(img.filename)}</div>
+                    <div class="filename">${escapeHtml(trimFilename(img.filename))}</div>
                 </div>
             `;
 
@@ -69,6 +69,11 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function trimFilename(filename) {
+    // Remove "COCO_train2014_" prefix and leading zeros
+    return filename.replace(/^COCO_train2014_0*/, '');
 }
 
 function prevPage() {
